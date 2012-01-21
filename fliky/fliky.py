@@ -1,41 +1,53 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+from __future__ import with_statement
 import os
 
-from flask import Flask, url_for
-from dulwich.repo import Repo
+from flask import Flask, url_for, render_template, request, redirect
+from utils.git import *
 
 app = Flask(__name__)
 
-#TODO outside from here, maybe fliky/backend/git.py
-def get_or_init_repo(name='content'):
-    if not os.path.exists(name):
-        repo = Repo.init(name, mkdir=True)
-    elif not os.path.exists(name + os.sep + '.git'):
-        repo = Repo.init(name)
-    else:
-        repo = Repo(name)
-    return repo
+REPO = '/Users/eduard/Desktop/fliky'
+
+exists = os.path.exists
 
 @app.route('/')
-@app.route('/<path:wiki_page>')
-def index(wiki_page=False):
-    if not wiki_page:
-        wiki_page = 'index.md'
-    else:
-        wiki_page += os.sep + 'index.md'
-    repo = get_or_init_repo()
-    store_page = 'content' + os.sep + wiki_page
-    if not repo.get_named_file(wiki_page):
+@app.route('/<path:wiki_page>/')
+def index(wiki_page='Main'):
+    if not exists('%s/.git' % REPO):
+        git_init(REPO)
+    if not exists('%s/%s' % (REPO, wiki_page)):
         return notfound(wiki_page)
-    return 'Hello World! on %s (store_page:%s)' % (wiki_page, store_page)
+    content = open('%s/%s/index.rst' % (REPO, wiki_page)).read() 
+    return render_template('view.html', content=content, wiki_page=wiki_page)
 
+@app.errorhandler(404)
 def notfound(wiki_page):
-    return 'Page %s not found. %s' % (wiki_page, url_for('edit', wiki_page=wiki_page))
+    return render_template('notfound.html', wiki_page=wiki_page, 
+                           create_url=url_for('edit', wiki_page=wiki_page))
 
-@app.route('/edit/<path:wiki_page>')
+@app.route('/edit/<path:wiki_page>/', methods=['GET', 'POST'])
 def edit(wiki_page='index'):
-    return 'Editing %s' % wiki_page
+    if request.method == 'POST':
+        try:
+            if not exists('%s/%s' % (REPO, wiki_page)):
+                os.makedirs('%s/%s' % (REPO, wiki_page))
+            with open('%s/%s/index.rst' % (REPO, wiki_page), 'w') as wikip:
+                wikip.write(request.form['text'])
+            git_add('%s/index.rst' % wiki_page)
+            git_commit(request.form['msg'], 'Eduard Carreras <ecarreras@gmail.com>')
+            return redirect(url_for('index', wiki_page=wiki_page))
+        except:
+            return render_template('error.html')
+    else:
+        content = ''
+        if exists('%s/%s' % (REPO, wiki_page)):
+            content = open('%s/%s/index.rst' 
+                % (REPO, wiki_page)).read()
+    	return render_template('edit.html', wiki_page=wiki_page,
+            content=content)
+
 
 if __name__ == '__main__':
     app.run(debug=True)
