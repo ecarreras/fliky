@@ -1,0 +1,13 @@
+<!doctype html>
+<title>Wiki: {{wiki_page}}</title>
+<link rel=stylesheet type=text/css href=http://twitter.github.com/bootstrap/1.4.0/bootstrap.min.css>
+<form action="{{ url_for('edit', wiki_page=wiki_page) }}" method=post>
+  <textarea name=text rows=5 cols=400>{{ content }}</textarea>
+  <br/>
+  <br/>
+  <input type=text size=30 name=msg>
+  <br/>
+  <br/>
+  <input type=submit value=Submit class="btn primary">
+  <a class="btn" href="{{ url_for('index', wiki_page=wiki_page) }}">Cancel</a>
+</form>
